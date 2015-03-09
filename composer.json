@@ -1,0 +1,35 @@
+{
+    "name": "webiny/github-subtree-tool",
+    "type": "library",
+    "description": "A tool to automatically update readonly github repos, based on a provided master repo.",
+    "keywords": [
+        "github"
+    ],
+    "homepage": "http://www.webiny.com/",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sven Al Hamad",
+            "email": "sven@webiny.com"
+        },
+        {
+            "name": "Pavel Denisjuk",
+            "email": "pavel@webiny.com"
+        },
+        {
+            "name": "Bruno Skvorc",
+            "email": "bruno@webiny.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.5.9",
+        "knplabs/github-api": "~1.4",
+        "wp-cli/php-cli-tools": "0.10.*"
+    },
+    "extras": {
+        "branch-alias": {
+            "dev-master": "master-dev"
+        }
+    }
+}
