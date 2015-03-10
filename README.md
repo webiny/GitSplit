@@ -5,11 +5,17 @@ This tool is used to semi-automate the management of read-only git repositories,
 that depend on the provided `master` repository.
 (**note:** `master` is not a branch in this case)
 
+## Installation
+
+```
+composer require webiny/github-subtree-tool
+```
 
 ## Running the tool
 
 Just run the following command from the terminal, and follow the procedure:
 ```
+$ cd vendor/webiny/github-subtree-tool/
 php cli.php
 ```
 ## Requirements
