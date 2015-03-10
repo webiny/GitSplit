@@ -16,7 +16,7 @@ composer require webiny/github-subtree-tool
 Just run the following command from the terminal, and follow the procedure:
 ```
 $ cd vendor/webiny/github-subtree-tool/
-php cli.php
+$ php cli.php
 ```
 ## Requirements
 
