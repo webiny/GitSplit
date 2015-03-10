@@ -14,9 +14,11 @@ if (!php_sapi_name() == "cli") {
     die('You must run this script from your command line');
 }
 
+// composer
+require_once '../../autoload.php';
+
 // initial requirements
 require_once 'config.php';
-require_once 'vendor/autoload.php';
 
 // temp loader
 require_once 'lib/Cli.php';
