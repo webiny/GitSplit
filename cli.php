@@ -1,121 +1,76 @@
 <?php
+/**
+ * Webiny Framework (http://www.webiny.com/framework)
+ *
+ * @copyright Copyright Webiny LTD
+ */
+
+use Webiny\GithubSubtreeTool\Lib\Cli;
+use Webiny\GithubSubtreeTool\Lib\MasterRepo;
+use Webiny\GithubSubtreeTool\Lib\System;
+
 // cli check
 if (!php_sapi_name() == "cli") {
     die('You must run this script from your command line');
 }
 
-// some initial checks
-if(GIT_ACC=='' || GIT_REPO == '' || GIT_USER == ''){
-    die('You config is invalid, please open and edit config.php');
-}
+// initial requirements
+require_once 'config.php';
+require_once 'vendor/autoload.php';
+
+// temp loader
+require_once 'lib/Cli.php';
+require_once 'lib/AbstractRepo.php';
+require_once 'lib/MasterRepo.php';
+require_once 'lib/SubtreeRepo.php';
+require_once 'lib/System.php';
 
 // repo dir
 define('REPO_DIR', __DIR__ . '/repos/'); // if changed, make sure you have a trailing slash at the end
 
-// initial requirements
-require_once 'config.php';
-require_once 'lib/tools.php';
-require_once 'vendor/autoload.php';
-
-// some shell coloring
-$colorEnd = "\033[0m";
-$colorHighlight = \cli\Colors::color([
-                                         'color'      => 'black',
-                                         'background' => 'green',
-                                         'style'      => 1
-                                     ]
-);
-$colorRed = \cli\Colors::color([
-                                   'color'      => 'black',
-                                   'background' => 'red',
-                                   'style'      => 1
-                               ]
-);
-
-$startTime = getTime();
+// start time
+$startTime = System::getTime();
 
 // initialize the cli
-\cli\Colors::enable(); // make it pretty
-cliLine();
-cliLine($colorHighlight . 'WELCOME TO WEBINY SUBTREE TOOL' . $colorEnd);
-cliLine('Released under MIT license.');
-cliLine('http://www.webiny.com/ | https://www.github.com/Webiny/');
-cliLine();
-cliLine('Use at your own risk.');
-cliLine('Make sure you know what you are doing,');
-cliLine('or you might mess things up - don\'t blame us then.');
-cliLine();
-cliLine('All bugs and improvements report to:');
-cliLine('https://www.github.com/Webiny/GithubSubtreeTool/');
-cliSeparator();
-cliLine();
-cliLine();
+$cli = new Cli();
 
-// let's start
-cliPrompt('Press any key to continue...', 'ENTER', '');
+// print header
+$cli->header();
 
-// check the we have the repos dir
-if (!is_dir(REPO_DIR)) {
-    mkdir(REPO_DIR, 0777);
-} else {
-    // make sure it's empty
-    system('rm -rf ' . REPO_DIR . '*');
-}
+// start the interaction
+$cli->prompt('Press any key to continue...', 'ENTER', '');
 
-cliLine('The tool will now gather data about your root repo (' . $colorHighlight . GIT_ACC . '/' . GIT_REPO . $colorEnd . ').'
+// create a fresh repo dir
+System::removeResource(REPO_DIR . '*');
+System::createDir(REPO_DIR);
+
+// confirm with the user the repo
+$cli->line('The tool will now gather data about your root repo (' . $cli->colorHighlight(
+           ) . GIT_ACC . '/' . GIT_REPO . $cli->colorEnd() . ').'
 );
-cliPrompt('Press any key to continue...', 'ENTER', '');
+$cli->prompt('Press any key to continue...', 'ENTER', '');
 
-// initialize the github client
-$client = new \Github\Client(new \Github\HttpClient\CachedHttpClient(['cache_dir' => REPO_DIR]));
-$client->authenticate(GIT_USER, GIT_PASS, \Github\Client::AUTH_HTTP_PASSWORD);
+// init Repo instance for master repo
+$masterRepo = new MasterRepo(GIT_REPO, 'master');
 
 // get the tag and branch info
-cliLine('...(please wait)');
-$branches = $client->api('repo')->branches(GIT_ACC, GIT_REPO);
-$tags = $client->api('repo')->tags(GIT_ACC, GIT_REPO);
+$cli->line('...(please wait)');
+$branches = $masterRepo->getBranches();
+$latestBranch = $masterRepo->getLatestBranch();
+$latestTag = $masterRepo->getLatestTag();
 
-
-// extract the latest branch
-$latestBranch = '0.0.0';
-$branchList = [];
-foreach ($branches as $b) {
-    $branch = str_replace('v', '', $b['name']);
-    if (preg_match('/(\d{1,10}\.\d{1,10})/', $branch) && version_compare($branch, $latestBranch, '>')) {
-        $latestBranch = $branch;
-    }
-    $branchList[] = $b['name'];
-}
-
-// extract the latest tag
-$latestTag = '0.0.0';
-foreach ($tags as $t) {
-    $tag = str_replace('v', '', $t['name']);
-    if (preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $tag) && version_compare($tag, $latestTag, '>')) {
-        $latestTag = $tag;
-    }
-}
-
-// output the info
-cliSeparator();
-cliLine('Latest branch: ' . $latestBranch);
-cliLine('Latest tag: ' . $latestTag);
+// output info
+$cli->separator();
+$cli->line('Latest branch: ' . $latestBranch);
+$cli->line('Latest tag: ' . $latestTag);
 
 // ask the user what does he want to do
-cliSeparator();
+$cli->separator();
 $menu = [
     '1' => 'Branch',
     '2' => 'Tag',
 ];
-
-while (true) {
-    $choice = cliMenu($menu, null, 'Do you want to create a new branch or a tag');
-    cliLine();
-    if ($choice) {
-        break;
-    }
-}
-
+$choice = $cli->menu($menu, null, 'Do you want to create a new branch or a tag');
 $branchOrTag = ($choice === 1) ? 'branch' : 'tag';
 
 // get the next release version
@@ -127,7 +82,8 @@ if ($branchOrTag == 'tag') {
 }
 
 while (true) {
-    $nextReleaseInput = cliPrompt('Type in the ' . strtoupper($branchOrTag) . ' number you wish to create', $nextRelease
+    $nextReleaseInput = $cli->prompt('Type in the ' . strtoupper($branchOrTag) . ' number you wish to create',
+                                     $nextRelease
     );
 
     // validate the next release
@@ -138,218 +94,158 @@ while (true) {
     }
 }
 
-cliSeparator();
 // from which branch should we create the new release
-while (true) {
-    $rootBranch = cliMenu($branchList, (count($branchList) - 1),
-                          'From which branch should we create the new ' . $branchOrTag
-    );
-    cliLine();
-
-    if (is_int($rootBranch)) {
-        break;
-    }
-}
-$rootBranch = $branchList[$rootBranch];
-
-cliSeparator();
-cliLine('Extracting subtree components.');
-cliLine('...(please wait)');
-cliLine('The following subtree components will be updated:');
-
-// get the subtree components
-$subTreeRaw = $client->api('repo')->contents()->show(GIT_ACC, GIT_REPO, GIT_SUBTREE, $rootBranch);
-$subTrees = [];
-foreach ($subTreeRaw as $st) {
-    if ($st['type'] == 'dir') {
-
-        cliSeparator();
-        cliLine('Extracting ' . strtoupper($st['name']) . ' details.');
-        cliLine('...(please wait)');
-
-        $tbranches = $client->api('repo')->branches(GIT_ACC, $st['name']);
-        $ttags = $client->api('repo')->tags(GIT_ACC, $st['name']);
-
-        // extract the latest branch
-        $tlatestBranch = '0.0.0';
-        $tbranchList = [];
-        $rootBranchExists = $colorRed . 'NO' . $colorEnd . ' (using master)';
-        $sourceBranch = 'master'; // default
-        foreach ($tbranches as $b) {
-            $branch = str_replace('v', '', $b['name']);
-            if (preg_match('/(\d{1,10}\.\d{1,10})/', $branch) && version_compare($branch, $tlatestBranch, '>')) {
-                $tlatestBranch = $branch;
-            }
-            $tbranchList[] = $b['name'];
-            if ($b['name'] == $rootBranch) {
-                $rootBranchExists = $colorHighlight . 'YES' . $colorEnd;
-                $sourceBranch = $b['name'];
-            }
-        }
-
-        // extract the latest tag
-        $tlatestTag = '0.0.0';
-        foreach ($ttags as $t) {
-            $tag = str_replace('v', '', $t['name']);
-            if (preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $tag) && version_compare($tag, $tlatestTag, '>')) {
-                $tlatestTag = $tag;
-            }
-        }
-
-        $subTrees[] = [
-            $st['name'],
-            $tlatestBranch,
-            $tlatestTag,
-            $rootBranchExists,
-            $sourceBranch
-        ];
-    }
-}
-cliSeparator();
-cliLine('For the following components, a new ' . $colorHighlight . strtoupper($branchOrTag
-        ) . ' ' . $nextReleaseInput . $colorEnd . ' will be created:'
+$cli->separator();
+$rootBranch = $cli->menu($branches, (count($branches) - 1), 'From which branch should we create the new ' . $branchOrTag
 );
-cliSeparator();
+$rootBranch = $branches[$rootBranch];
+$masterRepo->setBranch($rootBranch); // update the branch on the master Repo instance
 
-$table = new \cli\Table();
-$table->setHeaders([
-                       'Component',
-                       'Latest branch',
-                       'Latest tag',
-                       'Root branch exists'
-                   ]
+// extract the subtree components
+$cli->line('...(please wait)');
+$subTrees = $masterRepo->getSubtreeComponents();
+
+// display the subtree components
+$cli->line('For the following components, a new ' . $cli->colorHighlight() . strtoupper($branchOrTag
+           ) . ' ' . $nextReleaseInput . $cli->colorEnd() . ' will be created:'
 );
-$table->setRows($subTrees);
-$table->display();
-cliPrompt('Press any key to continue...', 'ENTER', '');
 
+$rows = [];
+foreach ($subTrees as $st) {
+    $rows[] = [
+        $st->getRepo(),
+        $st->getLatestBranch(),
+        $st->getLatestTag(),
+        $st->getBranch()
+    ];
+}
+$headers = [
+    'Component',
+    'Latest branch',
+    'Latest tag',
+    'Working branch'
+];
+$cli->table($headers, $rows);
+$cli->line('NOTE: master branch is selected on a component, if there is no matching source branch');
+$cli->prompt('Press any key to continue...', 'ENTER', '');
+
+// ask if we should also update the composer.json files
 $updateComposer = false;
 if ($branchOrTag == 'branch') {
-    cliSeparator();
+    $cli->separator();
     $menu = [
-        'y' => 'Yes',
-        'n' => 'No',
+        1 => 'Yes',
+        2 => 'No',
     ];
-    while (true) {
-        $choice = cliMenu($menu, 'n', 'Do you want to also update the version on composer dependencies?');
-        cliLine();
-        if ($choice) {
-            $updateComposer = ($choice == 'y') ? true : false;
-            break;
-        }
-    }
+    $choice = $cli->menu($menu, 1, 'Do you want to also update the version on composer dependencies?');
+    $updateComposer = ($choice === 1) ? true : false;
 
+    // if so, ask the user to provide some detail
     if ($updateComposer) {
-        $composerVersion = cliPrompt('What should be the new version for composer dependencies', '~' . $nextReleaseInput
+        $composerVersion = $cli->prompt('What should be the new version for composer dependencies',
+                                        '~' . $nextReleaseInput
         );
-        $composerDefMaster = cliPrompt('What should be the new dev-master version', $nextReleaseInput . '-dev');
+        $composerDefMaster = $cli->prompt('What should be the new dev-master version', $nextReleaseInput . '-dev');
     }
 }
 
-// start the update
-// first checkout the master repo branch root
-cliSeparator();
-cliLine('Cloning ' . GIT_REPO . ' (' . $rootBranch . ')');
-cloneRepo(GIT_REPO, $rootBranch);
-cliLine('Creating new ' . $branchOrTag . ' ' . $nextReleaseInput);
+// clone the master repo branch
+$cli->separator();
+$cli->line('Cloning ' . $masterRepo->getRepo() . ' (' . $masterRepo->getBranch() . ')');
+$masterRepo->cloneRepo();
 
-// create the release on master repo and switch to that release
+// create the new branch/tag on master repo
+$cli->line('Creating new ' . $branchOrTag . ' ' . $nextReleaseInput);
 if ($branchOrTag == 'branch') {
-    createBranch(GIT_REPO, $rootBranch, $nextReleaseInput);
+    $masterRepo->createBranch($nextReleaseInput);
 } else {
-    createTag(GIT_REPO, $rootBranch, $nextReleaseInput);
+    $masterRepo->createTag($nextReleaseInput);
 }
 
 // get the list of composer libraries
+// we can do this only if the repo has been cloned
 if ($updateComposer) {
-    $repoLibs = getComposerRepoLibraries(GIT_REPO, $rootBranch);
+    $composerLibs = $masterRepo->getComposerRepoLibraries();
 }
 
 // clone the subtree repos
 foreach ($subTrees as $st) {
-    cliSeparator();
-    cliLine($colorHighlight . 'Updating ' . strtoupper($st[0]) . ' component' . $colorEnd);
+    $cli->separator();
+    $cli->line($cli->colorHighlight() . 'Updating ' . strtoupper($st->getRepo()) . ' component' . $cli->colorEnd());
 
     // clone repo
-    cloneRepo($st[0], $st[4]);
+    $st->cloneRepo();
 
     // create the release
     if ($branchOrTag == 'branch') {
-        createBranch($st[0], $st[4], $nextReleaseInput);
+        $st->createBranch($nextReleaseInput);
     } else {
-        createTag($st[0], $st[4], $nextReleaseInput);
+        $st->createTag($nextReleaseInput);
     }
 
     // delete everything, except the git files from the subtree
     // this is required in case we deleted some file in the master repo, so we don't commit it to the subtree
-    resetRepo($st[0], $st[4]);
+    $st->resetRepo();
 
     // copy from the master to the subtree
-    copyRepo(GIT_REPO, $rootBranch, $st[0], $st[4]);
+    $masterRepo->copySubtreeRepo($st);
 
     // update the composer file
     if ($updateComposer) {
-        updateComposerRepoLibraryVersion($st[0], $st[4], $repoLibs, $composerVersion, $composerDefMaster);
+        $st->updateComposerRepoLibraryVersion($composerLibs, $composerVersion, $composerDefMaster);
 
         // sync the new composer.json with the master repo
-        copyComposerToMaster($st[0], $st[4], $rootBranch);
+        $st->copyComposerToMaster($masterRepo);
     }
 }
 
 // update and commit the composer file on the master repo
 if ($updateComposer) {
     // update master composer.json
-    updateComposerRepoLibraryVersion(GIT_REPO, $rootBranch, $repoLibs, $composerVersion, $composerDefMaster);
+    $masterRepo->updateComposerRepoLibraryVersion($composerLibs, $composerVersion, $composerDefMaster);
 }
 
-
 // ask the confirmation before the push
-cliSeparator();
+$cli->separator();
 $menu = [
     1 => 'Push changes',
     2 => 'Cancel',
 ];
-while (true) {
-    $choice = cliMenu($menu, null, 'All the changes are ready, please confirm your action');
-    cliLine();
-    if ($choice) {
-        if ($choice === 2) {
-            cliLine('Action canceled.');
-            die();
-        }
-        break;
-    }
+$choice = $cli->menu($menu, null, 'All the changes are ready, please confirm your action');
+if ($choice === 2) {
+    $cli->line('Action canceled.');
+    die();
 }
 
-
-cliLine($colorHighlight . 'Pushing changes: ' . GIT_ACC . '/' . GIT_REPO . $colorEnd);
+$cli->line($cli->colorHighlight() . 'Pushing changes: ' . GIT_ACC . '/' . GIT_REPO . $cli->colorEnd());
 
 // commit the changes
-commitRepo(GIT_REPO, $rootBranch, 'Created new ' . $branchOrTag . ' ' . $nextReleaseInput);
+$masterRepo->commitRepo('Created new ' . $branchOrTag . ' ' . $nextReleaseInput);
 
 // if we created a new branch, we also need a new tag for it
 if ($branchOrTag == 'branch') {
-    createTag(GIT_REPO, $rootBranch, $nextReleaseInput . '.0');
+    $masterRepo->createTag($nextReleaseInput . '.0');
 }
 
 // push the changes
-pushRepo(GIT_REPO, $rootBranch, $nextReleaseInput);
+$masterRepo->pushRepo($nextReleaseInput);
 
+// push the changes for subtrees
 foreach ($subTrees as $st) {
-    cliLine($colorHighlight . 'Pushing changes: ' . GIT_ACC . '/' . $st[0] . $colorEnd);
+    $cli->line($cli->colorHighlight() . 'Pushing changes: ' . GIT_ACC . '/' . $st->getRepo() . $cli->colorEnd());
 
-    commitRepo($st[0], $st[4], 'Synced changes from master repo.');
+    $st->commitRepo('Synced changes from master repo.');
 
     // if we created a new branch, we also need a new tag for it
     if ($branchOrTag == 'branch') {
-        createTag($st[0], $st[4], $nextReleaseInput . '.0');
+        $st->createTag($nextReleaseInput . '.0');
     }
 
-    pushRepo($st[0], $st[4], $nextReleaseInput);
+    $st->pushRepo($nextReleaseInput);
 }
 
 // all done
-cliSeparator();
-cliLine($colorHighlight . 'All done!' . $colorEnd);
-cliLine('Execution time: ' . (displayTime(getTime() - $startTime)));
-cliSeparator();
+$cli->separator();
+$cli->line($cli->colorHighlight() . 'All done!' . $cli->colorEnd());
+$cli->line('Execution time: ' . (System::displayTime(System::getTime() - $startTime)));
+$cli->separator();
