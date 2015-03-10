@@ -21,7 +21,6 @@ if(file_exists('vendor/autoload.php')){
     require_once '../../autoload.php';
 }
 
-
 // initial requirements
 require_once 'config.php';
 
@@ -40,6 +39,11 @@ $startTime = System::getTime();
 
 // initialize the cli
 $cli = new Cli();
+
+// validate the config params
+if(GIT_ACC == '' || GIT_REPO == '' || GIT_USER == ''){
+    $cli->error('Configuration invalid. Edit config.php and set the requested values.');
+}
 
 // print header
 $cli->header();
