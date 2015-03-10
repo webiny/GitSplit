@@ -15,7 +15,12 @@ if (!php_sapi_name() == "cli") {
 }
 
 // composer
-require_once '../../autoload.php';
+if(file_exists('vendor/autoload.php')){
+    require_once 'vendor/autoload.php';
+}else{
+    require_once '../../autoload.php';
+}
+
 
 // initial requirements
 require_once 'config.php';
