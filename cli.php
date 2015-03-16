@@ -14,15 +14,9 @@ if (!php_sapi_name() == "cli") {
     die('You must run this script from your command line');
 }
 
-// composer
-if(file_exists('vendor/autoload.php')){
-    require_once 'vendor/autoload.php';
-}else{
-    require_once '../../autoload.php';
-}
-
 // initial requirements
 require_once 'config.php';
+require_once 'vendor/autoload.php';
 
 // temp loader
 require_once 'lib/Cli.php';
@@ -40,11 +34,6 @@ $startTime = System::getTime();
 // initialize the cli
 $cli = new Cli();
 
-// validate the config params
-if(GIT_ACC == '' || GIT_REPO == '' || GIT_USER == ''){
-    $cli->error('Configuration invalid. Edit config.php and set the requested values.');
-}
-
 // print header
 $cli->header();
 
@@ -56,9 +45,7 @@ System::removeResource(REPO_DIR . '*');
 System::createDir(REPO_DIR);
 
 // confirm with the user the repo
-$cli->line('The tool will now gather data about your root repo (' . $cli->colorHighlight(
-           ) . GIT_ACC . '/' . GIT_REPO . $cli->colorEnd() . ').'
-);
+$cli->line('The tool will now gather data about your root repo (' . $cli->colorHighlight() . GIT_ACC . '/' . GIT_REPO . $cli->colorEnd() . ').');
 $cli->prompt('Press any key to continue...', 'ENTER', '');
 
 // init Repo instance for master repo
@@ -94,8 +81,7 @@ if ($branchOrTag == 'tag') {
 
 while (true) {
     $nextReleaseInput = $cli->prompt('Type in the ' . strtoupper($branchOrTag) . ' number you wish to create',
-                                     $nextRelease
-    );
+        $nextRelease);
 
     // validate the next release
     if ($branchOrTag == 'tag' && preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $nextReleaseInput)) {
@@ -107,8 +93,8 @@ while (true) {
 
 // from which branch should we create the new release
 $cli->separator();
-$rootBranch = $cli->menu($branches, (count($branches) - 1), 'From which branch should we create the new ' . $branchOrTag
-);
+$rootBranch = $cli->menu($branches, (count($branches) - 1),
+    'From which branch should we create the new ' . $branchOrTag);
 $rootBranch = $branches[$rootBranch];
 $masterRepo->setBranch($rootBranch); // update the branch on the master Repo instance
 
@@ -117,9 +103,7 @@ $cli->line('...(please wait)');
 $subTrees = $masterRepo->getSubtreeComponents();
 
 // display the subtree components
-$cli->line('For the following components, a new ' . $cli->colorHighlight() . strtoupper($branchOrTag
-           ) . ' ' . $nextReleaseInput . $cli->colorEnd() . ' will be created:'
-);
+$cli->line('For the following components, a new ' . $cli->colorHighlight() . strtoupper($branchOrTag) . ' ' . $nextReleaseInput . $cli->colorEnd() . ' will be created:');
 
 $rows = [];
 foreach ($subTrees as $st) {
@@ -154,8 +138,7 @@ if ($branchOrTag == 'branch') {
     // if so, ask the user to provide some detail
     if ($updateComposer) {
         $composerVersion = $cli->prompt('What should be the new version for composer dependencies',
-                                        '~' . $nextReleaseInput
-        );
+            '~' . $nextReleaseInput);
         $composerDefMaster = $cli->prompt('What should be the new dev-master version', $nextReleaseInput . '-dev');
     }
 }
@@ -236,10 +219,13 @@ $masterRepo->commitRepo('Created new ' . $branchOrTag . ' ' . $nextReleaseInput)
 // if we created a new branch, we also need a new tag for it
 if ($branchOrTag == 'branch') {
     $masterRepo->createTag($nextReleaseInput . '.0');
-}
 
-// push the changes
-$masterRepo->pushRepo($nextReleaseInput);
+    // push the changes
+    $masterRepo->pushRepo($nextReleaseInput);
+} else {
+    // push the changes
+    $masterRepo->pushRepo($rootBranch);
+}
 
 // push the changes for subtrees
 foreach ($subTrees as $st) {
@@ -250,10 +236,101 @@ foreach ($subTrees as $st) {
     // if we created a new branch, we also need a new tag for it
     if ($branchOrTag == 'branch') {
         $st->createTag($nextReleaseInput . '.0');
+        $st->pushRepo($nextReleaseInput);
+    } else {
+        $st->pushRepo($rootBranch);
+    }
+}
+
+// ask if the changes should be merged into master branch
+// do this both for a new tag and a new branch
+if ($nextReleaseInput != 'master') {
+    $cli->separator();
+    $menu = [
+        1 => 'Yes',
+        2 => 'No',
+    ];
+
+    // tags are merged into branches
+    // branches are merged into master
+    $mergeTo = 'master';
+    if ($branchOrTag == 'tag') {
+        $mergeTo = substr($nextReleaseInput, 0, -2);
     }
 
-    $st->pushRepo($nextReleaseInput);
+    if ($updateComposer) {
+        $choice = $cli->menu($menu, 1,
+            'Do you want to merge ' . $branchOrTag . ' ' . $nextReleaseInput . ', and the composer changes, into some other branch?');
+    } else {
+        $choice = $cli->menu($menu, 1,
+            'Do you want to merge ' . $branchOrTag . ' ' . $nextReleaseInput . ' into some other branch?');
+    }
+
+    if ($choice === 1) {
+        // where should we merge to
+        do {
+            $mergeToBranch = $cli->prompt('Where should we merge to', $mergeTo);
+
+            $branchExists = $masterRepo->branchExists($mergeToBranch);
+            if (!$branchExists) {
+                $cli->line('Branch ' . $mergeToBranch . ' doesn\'t exist on the repo, please pick an existing branch.');
+            }
+        } while (!$branchExists);
+
+
+        // if we created a new branch, the root branch is that new branch, since it contains all the changes
+        if ($branchOrTag == 'branch') {
+            $rootBranch = $nextReleaseInput;
+        }
+
+        // do the merge
+        $masterRepo->mergeBranch($mergeToBranch, $rootBranch);
+
+        // push the changes
+        $masterRepo->pushRepo($mergeToBranch);
+
+        foreach ($subTrees as $st) {
+            $cli->line($cli->colorHighlight() . 'Merging ' . GIT_ACC . '/' . $st->getRepo() . $cli->colorEnd());
+
+            // do the merge
+            $st->mergeBranch($mergeToBranch, $rootBranch);
+
+            // push the changes
+            $st->pushRepo($mergeToBranch);
+        }
+
+        // is branch ahead of master
+        if ($mergeToBranch != 'master') {
+            $cli->separator();
+            $menu = [
+                1 => 'Yes',
+                2 => 'No',
+            ];
+
+            $choice = $cli->menu($menu, 1,
+                'The ' . $mergeToBranch . ' branch is now ahead of master, do you want to merge changes into master?');
+
+            if ($choice == 1) {
+                // do the merge
+                $masterRepo->mergeBranch('master', $mergeToBranch);
+
+                // push the changes
+                $masterRepo->pushRepo('master');
+
+                foreach ($subTrees as $st) {
+                    $cli->line($cli->colorHighlight() . 'Merging ' . GIT_ACC . '/' . $st->getRepo() . $cli->colorEnd());
+
+                    // do the merge
+                    $st->mergeBranch('master', $mergeToBranch);
+
+                    // push the changes
+                    $st->pushRepo('master');
+                }
+            }
+        }
+    }
 }
+
 
 // all done
 $cli->separator();

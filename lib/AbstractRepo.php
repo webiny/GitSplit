@@ -53,10 +53,8 @@ abstract class AbstractRepo
 
         // initialize the github client
         $this->_client = new \Github\Client(new \Github\HttpClient\CachedHttpClient([
-                                                                                        'cache_dir' => REPO_DIR . 'gh-cache/' . $this->_repo
-                                                                                    ]
-                                            )
-        );
+                    'cache_dir' => REPO_DIR . 'gh-cache/' . $this->_repo
+                ]));
         $this->_client->authenticate(GIT_USER, GIT_PASS, \Github\Client::AUTH_HTTP_PASSWORD);
     }
 
@@ -105,6 +103,22 @@ abstract class AbstractRepo
         }
 
         return $this->_branches;
+    }
+
+    /**
+     * Does the branch exist in the repo.
+     *
+     * @param $branch
+     *
+     * @return bool
+     */
+    public function branchExists($branch)
+    {
+        if(!in_array($branch, $this->_branches)){
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -204,8 +218,37 @@ abstract class AbstractRepo
      */
     public function createBranch($newBranch)
     {
+        $this->_branches[] = $newBranch;
+
         $repoPath = $this->getRepoPath();
         $command = '(cd ' . $repoPath . '; git checkout -b ' . $newBranch . ')';
+        System::command($command);
+    }
+
+    /**
+     * Checkouts the given branch.
+     *
+     * @param $branch
+     */
+    public function checkoutBranch($branch)
+    {
+        $this->createBranch($branch);
+    }
+
+    public function mergeBranch($mergeTo, $mergeFrom)
+    {
+        $repoPath = $this->getRepoPath();
+
+        // fetch
+        $command = '(cd ' . $repoPath . '; git fetch)';
+        System::command($command);
+
+        // checkout the mergeTo branch
+        $command = '(cd ' . $repoPath . '; git checkout '.$mergeTo.')';
+        System::command($command);
+
+        // issue the merge command
+        $command = '(cd ' . $repoPath . '; git merge ' . $mergeFrom . ')';
         System::command($command);
     }
 
@@ -258,53 +301,6 @@ abstract class AbstractRepo
     }
 
     /**
-     * Returns a list of composer libraries used inside the repo.
-     *
-     * @return array|void
-     */
-    public function getComposerRepoLibraries()
-    {
-        if (!empty($this->_composerLibs)) {
-            return $this->_composerLibs;
-        }
-
-        $repoPath = $this->getRepoPath();
-
-        // get composer json data
-        $composerPath = $repoPath . 'composer.json';
-        if (!file_exists($composerPath)) {
-            $cli = new Cli;
-            $cli->error('composer.json doesn\t exist for ' . $this->_repo . ' (' . $this->_branch . ')');
-
-            return;
-        }
-
-        $composerData = json_decode(file_get_contents($composerPath), true);
-
-        // get the composer lib name
-        $libName = explode('/', $composerData['name']);
-        $libName = $libName[0];
-
-        // parse the repo libraries
-        $repoLibs = [];
-        $composerDepths = [
-            'require',
-            'require-dev'
-        ];
-        foreach ($composerDepths as $cd) {
-            foreach ($composerData[$cd] as $dep => $v) {
-                if (strpos($dep, $libName . '/') !== false) {
-                    $repoLibs[] = $dep;
-                }
-            }
-        }
-
-        $this->_composerLibs = $repoLibs;
-
-        return $this->_composerLibs;
-    }
-
-    /**
      * Updates the versions on the current composer.json.
      *
      * @param $libs
@@ -343,8 +339,7 @@ abstract class AbstractRepo
 
         // write the new composer json
         file_put_contents($repoPath . 'composer.json',
-                          json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-        );
+            json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     /**
