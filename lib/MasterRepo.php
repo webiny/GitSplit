@@ -18,8 +18,7 @@ class MasterRepo extends AbstractRepo
     public function copySubtreeRepo(SubtreeRepo $destinationRepo)
     {
         $checkoutFolder = REPO_DIR;
-        $source = $checkoutFolder . $this->getRepo() . '/' . $this->getBranch(
-            ) . '/' . GIT_SUBTREE . '/' . $destinationRepo->getRepo();
+        $source = $checkoutFolder . $this->getRepo() . '/' . $this->getBranch() . '/' . GIT_SUBTREE . '/' . $destinationRepo->getRepo();
         if (!is_dir($source)) {
             die('source repository not found: ' . $source);
         }
@@ -54,5 +53,44 @@ class MasterRepo extends AbstractRepo
         }
 
         return $subTrees;
+    }
+
+    /**
+     * Returns a list of composer libraries used inside the repo.
+     *
+     * @return array|void
+     */
+    public function getComposerRepoLibraries()
+    {
+        $repoPath = $this->getRepoPath();
+        $components = $this->getSubtreeComponents();
+        $composerLibs = [];
+        foreach ($components as $c) {
+            // get composer json data
+            $composerPath = $repoPath . GIT_SUBTREE . '/' . $c->getRepo() . '/composer.json';
+            if (!file_exists($composerPath)) {
+                $cli = new Cli;
+                $cli->error('composer.json doesn\t exist for ' . $this->_repo . ' (' . $this->_branch . ')');
+
+                return;
+            }
+            $composerData = json_decode(file_get_contents($composerPath), true);
+
+            $composerLibs[] = $composerData['name'];
+        }
+
+        // master
+        $composerPath = $repoPath . '/composer.json';
+        if (!file_exists($composerPath)) {
+            $cli = new Cli;
+            $cli->error('composer.json doesn\t exist for ' . $this->_repo . ' (' . $this->_branch . ')');
+
+            return;
+        }
+        $composerData = json_decode(file_get_contents($composerPath), true);
+
+        $composerLibs[] = $composerData['name'];
+
+        return $composerLibs;
     }
 }
