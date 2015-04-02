@@ -330,9 +330,11 @@ abstract class AbstractRepo
             'require-dev'
         ];
         foreach ($composerDepths as $cd) {
-            foreach ($composerData[$cd] as $dep => $v) {
-                if (in_array($dep, $libs)) {
-                    $composerData[$cd][$dep] = $newVersion;
+            if (isset($composerData[$cd]) && !empty($composerData[$cd])) {
+                foreach ($composerData[$cd] as $dep => $v) {
+                    if (in_array($dep, $libs)) {
+                        $composerData[$cd][$dep] = $newVersion;
+                    }
                 }
             }
         }
