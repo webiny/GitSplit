@@ -168,10 +168,12 @@ abstract class AbstractRepo
         $latestTag = '0.0.0';
         $tags = $this->getTags();
 
-        foreach ($tags as $t) {
-            $tag = str_replace('v', '', $t);
-            if (preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $tag) && version_compare($tag, $latestTag, '>')) {
-                $latestTag = $tag;
+        if (!empty($tags)) {
+            foreach ($tags as $t) {
+                $tag = str_replace('v', '', $t);
+                if (preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $tag) && version_compare($tag, $latestTag, '>')) {
+                    $latestTag = $tag;
+                }
             }
         }
 
