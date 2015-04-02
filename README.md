@@ -30,7 +30,7 @@ GIT_REPO
 - name of your `master` repo
 - example: Framework (refers to https://github.com/Webiny/Framework)
 
-GIT_ACC
+GIT_USER
 - your github username
 - should have write access to GIT_REPO
 
