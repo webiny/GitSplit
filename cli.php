@@ -191,6 +191,8 @@ foreach ($subTrees as $st) {
         // sync the new composer.json with the master repo
         $st->copyComposerToMaster($masterRepo);
     }
+
+    $st->commitRepo('Synced changes from master repo.');
 }
 
 // update and commit the composer file on the master repo
@@ -198,6 +200,9 @@ if ($updateComposer) {
     // update master composer.json
     $masterRepo->updateComposerRepoLibraryVersion($composerLibs, $composerVersion, $composerDefMaster);
 }
+
+// commit the changes
+$masterRepo->commitRepo('Created new ' . $branchOrTag . ' ' . $nextReleaseInput);
 
 // ask the confirmation before the push
 $cli->separator();
@@ -213,8 +218,6 @@ if ($choice === 2) {
 
 $cli->line($cli->colorHighlight() . 'Pushing changes: ' . GIT_ACC . '/' . GIT_REPO . $cli->colorEnd());
 
-// commit the changes
-$masterRepo->commitRepo('Created new ' . $branchOrTag . ' ' . $nextReleaseInput);
 
 // if we created a new branch, we also need a new tag for it
 if ($branchOrTag == 'branch') {
@@ -230,8 +233,6 @@ if ($branchOrTag == 'branch') {
 // push the changes for subtrees
 foreach ($subTrees as $st) {
     $cli->line($cli->colorHighlight() . 'Pushing changes: ' . GIT_ACC . '/' . $st->getRepo() . $cli->colorEnd());
-
-    $st->commitRepo('Synced changes from master repo.');
 
     // if we created a new branch, we also need a new tag for it
     if ($branchOrTag == 'branch') {

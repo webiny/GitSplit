@@ -53,8 +53,8 @@ abstract class AbstractRepo
 
         // initialize the github client
         $this->_client = new \Github\Client(new \Github\HttpClient\CachedHttpClient([
-                    'cache_dir' => REPO_DIR . 'gh-cache/' . $this->_repo
-                ]));
+            'cache_dir' => REPO_DIR . 'gh-cache/' . $this->_repo
+        ]));
         $this->_client->authenticate(GIT_USER, GIT_PASS, \Github\Client::AUTH_HTTP_PASSWORD);
     }
 
@@ -114,7 +114,7 @@ abstract class AbstractRepo
      */
     public function branchExists($branch)
     {
-        if(!in_array($branch, $this->_branches)){
+        if (!in_array($branch, $this->_branches)) {
             return false;
         }
 
@@ -226,7 +226,7 @@ abstract class AbstractRepo
     }
 
     /**
-     * Checkouts the given branch.
+     * Checkouts the given new branch.
      *
      * @param $branch
      */
@@ -235,6 +235,24 @@ abstract class AbstractRepo
         $this->createBranch($branch);
     }
 
+    /**
+     * Checkout an existing branch.
+     *
+     * @param $branch
+     */
+    public function checkoutExistingBranch($branch)
+    {
+        $repoPath = $this->getRepoPath();
+        $command = '(cd ' . $repoPath . '; git checkout ' . $branch . ')';
+        System::command($command);
+    }
+
+    /**
+     * Merges the two given branches.
+     *
+     * @param $mergeTo
+     * @param $mergeFrom
+     */
     public function mergeBranch($mergeTo, $mergeFrom)
     {
         $repoPath = $this->getRepoPath();
@@ -244,11 +262,18 @@ abstract class AbstractRepo
         System::command($command);
 
         // checkout the mergeTo branch
-        $command = '(cd ' . $repoPath . '; git checkout '.$mergeTo.')';
+        $command = '(cd ' . $repoPath . '; git checkout ' . $mergeTo . ')';
+        echo $command . "\n";
+        System::command($command);
+
+        // pull
+        $command = '(cd ' . $repoPath . '; git pull)';
+        echo $command . "\n";
         System::command($command);
 
         // issue the merge command
         $command = '(cd ' . $repoPath . '; git merge ' . $mergeFrom . ')';
+        echo $command . "\n";
         System::command($command);
     }
 
@@ -340,6 +365,62 @@ abstract class AbstractRepo
         // write the new composer json
         file_put_contents($repoPath . 'composer.json',
             json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Delete the given branch locally.
+     *
+     * @param $branchToDelete
+     */
+    public function deleteBranch($branchToDelete)
+    {
+        $repoPath = $this->getRepoPath();
+
+        // delete tehe tag
+        $command = '(cd ' . $repoPath . '; git branch -D ' . $branchToDelete . ')';
+        System::command($command);
+    }
+
+    /**
+     * Delete a remote branch.
+     *
+     * @param $branchToDelete
+     */
+    public function pushBranchDelete($branchToDelete)
+    {
+        $repoPath = $this->getRepoPath();
+
+        // delete tehe tag
+        $command = '(cd ' . $repoPath . '; git push origin --delete ' . $branchToDelete . ')';
+        System::command($command);
+    }
+
+    /**
+     * Delete the given tag locally.
+     *
+     * @param $tagToDelete
+     */
+    public function deleteTag($tagToDelete)
+    {
+        $repoPath = $this->getRepoPath();
+
+        // delete the tag
+        $command = '(cd ' . $repoPath . '; git tag -d ' . $tagToDelete . ')';
+        System::command($command);
+    }
+
+    /**
+     * Delete a remote tag.
+     * 
+     * @param $tagToDelete
+     */
+    public function pushTagDelete($tagToDelete)
+    {
+        $repoPath = $this->getRepoPath();
+
+        // delete the tag
+        $command = '(cd ' . $repoPath . '; git push --delete origin ' . $tagToDelete . ')';
+        System::command($command);
     }
 
     /**
