@@ -168,10 +168,12 @@ abstract class AbstractRepo
         $latestTag = '0.0.0';
         $tags = $this->getTags();
 
-        foreach ($tags as $t) {
-            $tag = str_replace('v', '', $t);
-            if (preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $tag) && version_compare($tag, $latestTag, '>')) {
-                $latestTag = $tag;
+        if (!empty($tags)) {
+            foreach ($tags as $t) {
+                $tag = str_replace('v', '', $t);
+                if (preg_match('/(\d{1,10}\.\d{1,10}\.\d{1,10})/', $tag) && version_compare($tag, $latestTag, '>')) {
+                    $latestTag = $tag;
+                }
             }
         }
 
@@ -353,9 +355,11 @@ abstract class AbstractRepo
             'require-dev'
         ];
         foreach ($composerDepths as $cd) {
-            foreach ($composerData[$cd] as $dep => $v) {
-                if (in_array($dep, $libs)) {
-                    $composerData[$cd][$dep] = $newVersion;
+            if (isset($composerData[$cd]) && !empty($composerData[$cd])) {
+                foreach ($composerData[$cd] as $dep => $v) {
+                    if (in_array($dep, $libs)) {
+                        $composerData[$cd][$dep] = $newVersion;
+                    }
                 }
             }
         }
