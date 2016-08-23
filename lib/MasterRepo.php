@@ -40,6 +40,8 @@ class MasterRepo extends AbstractRepo
         foreach ($subTreeRaw as $st) {
             if ($st['type'] == 'dir') {
 
+                echo "checking: ".$st['name']."\n";
+                
                 // create new repo instance
                 $repoInstance = new SubtreeRepo($st['name'], 'master');
                 $branches = $repoInstance->getBranches();

@@ -96,9 +96,11 @@ abstract class AbstractRepo
     public function getBranches()
     {
         if (empty($this->_branches)) {
-            $branches = $this->_client->api('repo')->branches(GIT_ACC, $this->_repo);
-            foreach ($branches as $b) {
-                $this->_branches[] = $b['name'];
+            $tempBranches = $this->_client->api('repo')->branches(GIT_ACC, $this->_repo);
+            $i = 1;
+            foreach ($tempBranches as $b) {
+                $this->_branches[$i] = $b['name'];
+                $i++;
             }
         }
 

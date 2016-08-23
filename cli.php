@@ -93,17 +93,21 @@ while (true) {
 
 // from which branch should we create the new release
 $cli->separator();
-$rootBranch = $cli->menu($branches, (count($branches) - 1),
-    'From which branch should we create the new ' . $branchOrTag);
+$rootBranch = $cli->menu($branches, null, 'From which branch should we create the new ' . $branchOrTag);
 $rootBranch = $branches[$rootBranch];
 $masterRepo->setBranch($rootBranch); // update the branch on the master Repo instance
 
 // extract the subtree components
-$cli->line('...(please wait)');
-$subTrees = $masterRepo->getSubtreeComponents();
+$cli->line(sprintf('using %s...(please wait)', $cli->colorHighlight() . strtoupper($rootBranch) . $cli->colorEnd()));
+try{
+    $subTrees = $masterRepo->getSubtreeComponents();
+}catch (\Exception $e){
+    die($e->getMessage());
+}
+
 
 // display the subtree components
-$cli->line('For the following components, a new ' . $cli->colorHighlight() . strtoupper($branchOrTag) . ' ' . $nextReleaseInput . $cli->colorEnd() . ' will be created:');
+$cli->line('For the following components, a new ' . $cli->colorHighlight() . strtoupper($branchOrTag) . ' ' . $nextReleaseInput . $cli->colorEnd() . ' will be created ...(please wait):');
 
 $rows = [];
 foreach ($subTrees as $st) {

@@ -32,9 +32,8 @@ class Cli
     public function prompt($question, $default = false, $marker = ': ', $hide = false)
     {
         $color = \cli\Colors::color([
-                                        'color' => 'yellow'
-                                    ]
-        );
+                'color' => 'yellow'
+            ]);
 
         return \cli\prompt($color . $question . ' [' . $default . ']' . "\033[0m", $default, $marker, $hide);
     }
@@ -51,9 +50,8 @@ class Cli
     public function menu($items, $default = null, $title = 'Choose an item')
     {
         $color = \cli\Colors::color([
-                                        'color' => 'yellow'
-                                    ]
-        );
+                'color' => 'yellow'
+            ]);
         $title = $color . $title;
         if ($default !== null) {
             $title .= ' [' . $items[$default] . ']';
@@ -65,7 +63,9 @@ class Cli
             $choice = \cli\menu($items, $default, $title);
             $this->line();
             if (is_int($choice)) {
-                break;
+                if (in_array($choice, array_keys($items))) {
+                    break;
+                }
             }
         }
 
@@ -91,10 +91,9 @@ class Cli
     public function error($msg)
     {
         $color = \cli\Colors::color([
-                                        'color'      => 'black',
-                                        'background' => 'red'
-                                    ]
-        );
+                'color'      => 'black',
+                'background' => 'red'
+            ]);
         \cli\line($color . 'ERROR: ' . $msg . " \033[0m");
     }
 
@@ -106,11 +105,10 @@ class Cli
     public function colorHighlight()
     {
         return \cli\Colors::color([
-                                      'color'      => 'black',
-                                      'background' => 'green',
-                                      'style'      => 1
-                                  ]
-        );
+                'color'      => 'black',
+                'background' => 'green',
+                'style'      => 1
+            ]);
     }
 
     /**
@@ -121,11 +119,10 @@ class Cli
     public function colorRed()
     {
         return \cli\Colors::color([
-                                      'color'      => 'black',
-                                      'background' => 'red',
-                                      'style'      => 1
-                                  ]
-        );
+                'color'      => 'black',
+                'background' => 'red',
+                'style'      => 1
+            ]);
     }
 
     /**
